@@ -5,6 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
 from PIL import Image
+from sympy.physics.mechanics.functions import inertia
+
+from cource_ml.sem3_CMeans import predict
 
 
 # Домашка до 3 декабря
@@ -21,6 +24,8 @@ class MyKMeans:
     OUT_DIR = "out"
 
     def __init__(self, n_clusters, max_iter=100, random_state=42, tol=0.1):
+        if n_clusters == 0:
+            raise ValueError("n_clusters should be greather than 0")
         self.n_clusters = n_clusters
         self.centroids = None
         self.random_state = random_state
@@ -40,6 +45,7 @@ class MyKMeans:
         else:
             raise ValueError("unknown init method")
 
+        labels = None
         for iteration in range(self.max_iter):
             diffs = X[:, np.newaxis] - self.centroids
             # broadcasting (n_samples, 1, n_features) - (n_clusters, n_features) = (n_samples, n_clusters, n_features)
@@ -52,7 +58,9 @@ class MyKMeans:
             if np.all(np.linalg.norm(self.centroids - new_centroids, axis=1) <= self.tol):
                 break
             self.centroids = new_centroids
-        self._visualize_centroids(X, labels, -1, 3000, visualize_mode)
+
+        if visualize:
+            self._visualize_centroids(X, labels, -1, 3000, visualize_mode)
 
     def predict(self, X):
         if self.centroids is None:
@@ -61,12 +69,43 @@ class MyKMeans:
         distances = np.linalg.norm(X[:, np.newaxis] - self.centroids, axis=2)
         return np.argmin(distances, axis=1)
 
-    def get_optimal_cluster_num(self, X):
+    def calculate_inertia(self, X):
+        """
+        Рассчитывает инерцию (сумма квадратов расстояний внутри кластеров)
+        """
+        if self.centroids is None:
+            raise ValueError("Model is not fitted yet. Call 'fit' before 'inertia'.")
 
-        return 1
+        inertia = 0
+        Y = self.predict(X)
+        for i in range(len(X)):
+            label = Y[i]
+            distance = np.linalg.norm(X[i] - self.centroids[label])
+            inertia += distance ** 2
+        return inertia
 
-    def inertia(self):
-        pass
+    @staticmethod
+    def get_optimal_cluster_num_elbow(X, n_max_clusters=10, visualize=False):
+        inertia_list = []
+        for i in range(1, n_max_clusters):
+            kmeans = MyKMeans(n_clusters=i)
+            kmeans.fit(X)
+            inertia_list.append(kmeans.calculate_inertia(X))
+
+        if visualize:
+            plt.figure(figsize=(8, 6))
+            plt.plot(range(1, n_max_clusters), inertia_list, marker='o')
+            plt.title('Метод локтя для выбора оптимального количества кластеров')
+            plt.xlabel('Количество кластеров')
+            plt.ylabel('Инерция')
+            plt.xticks(range(1, 11))
+            plt.show()
+
+        # вычисление локтя по формуле из книги
+        diffs = [abs(inertia_list[i] - inertia_list[i + 1]) for i in range(0, len(inertia_list) - 1)]
+        rel = [diffs[i + 1] / diffs[i] for i in range(0, len(diffs) - 1)]
+        optimal_i = np.argmin(rel) + 2
+        return optimal_i
 
     def _init_centroids_max_distance(self, X):
         diffs = X[:, np.newaxis] - X
@@ -78,13 +117,13 @@ class MyKMeans:
             distances = np.linalg.norm(diffs, axis=2)
 
             # Находим минимальное расстояние до ближайшего центра для каждой точки
-            min_distances = np.min(distances, axis=1)
-
-            # Выбираем точку, у которой это минимальное расстояние максимально
-            next_centroid_index = np.argmax(min_distances)
-            selected_centroids.append(X[next_centroid_index])
-
-        self.centroids = np.array(selected_centroids)
+            min_distances = np.min(distances, axis=1)   
+    
+            # Выбираем точку, у которой это минимальное расстояние максимально  
+            next_centroid_index = np.argmax(min_distances)  
+            selected_centroids.append(X[next_centroid_index])   
+    
+        self.centroids = np.array(selected_centroids)   
 
     def _init_centroids_kmeans_pp(self, X):
         # первый элемент - случайный из датасета
@@ -176,9 +215,7 @@ class MyKMeans:
             os.remove(file_path)
 
 
-# arrange_
-
-
+# arrange
 def generate_blobs():
     x, y = [], []
     for i in range(250):
@@ -196,12 +233,14 @@ def generate_blobs():
 
     return np.vstack(matrix)
 
+
 flowers = load_iris()
 
 # X = generate_blobs()
 X = flowers['data']
 
 # act
-kmeans = MyKMeans(3)
-kmeans.fit(X, visualize=True, visualize_mode=MyKMeans.VisualizeModes.GIF)
+optimal_clusters_count = MyKMeans.get_optimal_cluster_num_elbow(X, visualize=True)
+kmeans = MyKMeans(optimal_clusters_count)
+kmeans.fit(X, visualize=True, visualize_mode=MyKMeans.VisualizeModes.PLOT)
 Y = kmeans.predict(X)

@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
 from PIL import Image
-from sympy.physics.mechanics.functions import inertia
 
 from cource_ml.sem3_CMeans import predict
 
@@ -233,10 +232,7 @@ def generate_blobs():
 
     return np.vstack(matrix)
 
-
 flowers = load_iris()
-
-# X = generate_blobs()
 X = flowers['data']
 
 # act

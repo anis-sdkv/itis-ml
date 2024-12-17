@@ -54,8 +54,8 @@ class GraphViewModel:
         pos1 = positions[node1]
         pos2 = positions[node2]
         distance = np.linalg.norm(pos1 - pos2)
-        if distance < 1:
-            distance = 1  # избежание деления на ноль
+        if distance < 10:
+                distance = 10
         force_direction = (pos1 - pos2) / distance  # нормализованный вектор силы отталкивания
         magnitude = k / (distance ** 2)  # сила отталкивания пропорциональна квадрату расстояния
         return force_direction * magnitude
@@ -67,6 +67,8 @@ class GraphViewModel:
         pos2 = positions[node2]
         distance = np.linalg.norm(pos1 - pos2)
         force_direction = (pos2 - pos1) / distance  # нормализованный вектор притяжения
+        if distance < 10:
+            distance = 10
         magnitude = distance ** 2 / k  # сила притяжения пропорциональна квадрату расстояния
         return force_direction * magnitude
 
@@ -76,7 +78,7 @@ class GraphViewModel:
             for other_node in self.graph_data.graph.nodes():
                 if node != other_node:
                     total_repulsion += GraphViewModel.repulsion_force(node, other_node, self.graph_node_positions,
-                                                                      link_distance)
+                                                                      link_distance * 5)
 
             total_attraction = np.array([0.0, 0.0])
             for neighbor in self.graph_data.graph.neighbors(node):
@@ -117,7 +119,7 @@ class GraphViewModel:
     def try_get_node_by_pos(self, pos):
         for node, (x, y) in self.graph_node_positions.items():
             distance = np.sqrt((x - pos[0]) ** 2 + (y - pos[1]) ** 2)
-            if distance <= GraphViewModel.NODE_RADIUS:
+            if distance <= GraphViewModel.NODE_RADIUS * 2:
                 return node
         return None
 
@@ -137,6 +139,8 @@ class App:
         self.clock = pygame.time.Clock()
         self.fps = 60
 
+        self.key_f_down = False
+
         self.graph_view_model = GraphViewModel(width, height)
         self.captured_node = None
 
@@ -149,7 +153,7 @@ class App:
             elif event.type == pygame.MOUSEBUTTONUP:
                 self.captured_node = None
             elif event.type == pygame.KEYDOWN:
-                pass
+                self._handle_keydown(event.key)
 
     def update(self):
         self.graph_view_model.update_positions(30000)
@@ -180,7 +184,9 @@ class App:
                                                                                       dtype=np.float64)
 
     def _handle_key_actions(self):
-        pass
+        if self.key_f_down:
+            self.key_f_down = False
+            self._toggle_fullscreen()
 
     def _handle_keydown(self, key):
         if key == pygame.K_f:
